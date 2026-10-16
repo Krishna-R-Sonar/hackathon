@@ -1,0 +1,180 @@
+﻿diff --git a/eval-base-project/src/order_service/__pycache__/service.cpython-314.pyc b/eval-with-memory/src/order_service/__pycache__/service.cpython-314.pyc
+index d94220f..f314ee5 100644
+Binary files a/eval-base-project/src/order_service/__pycache__/service.cpython-314.pyc and b/eval-with-memory/src/order_service/__pycache__/service.cpython-314.pyc differ
+diff --git a/eval-base-project/src/order_service/__pycache__/storage.cpython-314.pyc b/eval-with-memory/src/order_service/__pycache__/storage.cpython-314.pyc
+index eefdfe0..9c255fd 100644
+Binary files a/eval-base-project/src/order_service/__pycache__/storage.cpython-314.pyc and b/eval-with-memory/src/order_service/__pycache__/storage.cpython-314.pyc differ
+diff --git a/eval-base-project/src/order_service/service.py b/eval-with-memory/src/order_service/service.py
+index 742ef10..90cf1e9 100644
+--- a/eval-base-project/src/order_service/service.py
++++ b/eval-with-memory/src/order_service/service.py
+@@ -1,7 +1,8 @@
+ """
+-Order Service core business logic.
++Order Service core business logic with idempotency and exponential backoff retry.
+ """
+ 
++import time
+ import uuid
+ from typing import List, Optional
+ from order_service.models import Order, OrderItem, OrderStatus, AuditLogEntry
+@@ -10,8 +11,17 @@ from order_service.storage import InMemoryStorage
+ 
+ 
+ class OrderService:
+-    def __init__(self, storage: Optional[InMemoryStorage] = None):
++    def __init__(
++        self,
++        storage: Optional[InMemoryStorage] = None,
++        initial_retry_delay: float = 0.05,
++        backoff_factor: float = 2.0,
++        max_retries: int = 3,
++    ):
+         self.storage = storage or InMemoryStorage()
++        self.initial_retry_delay = initial_retry_delay
++        self.backoff_factor = backoff_factor
++        self.max_retries = max_retries
+ 
+     def create_order(
+         self,
+@@ -19,7 +29,12 @@ class OrderService:
+         items: List[OrderItem],
+         idempotency_key: Optional[str] = None,
+     ) -> Order:
+-        """Initializes a new order in CREATED status."""
++        """Initializes a new order in CREATED status or returns idempotent cached order."""
++        if idempotency_key:
++            cached = self.storage.get_idempotent_order(idempotency_key)
++            if cached:
++                return cached
++
+         total = sum(item.quantity * item.unit_price for item in items)
+         order_id = f"ord_{uuid.uuid4().hex[:8]}"
+         order = Order(
+@@ -35,30 +50,56 @@ class OrderService:
+         return order
+ 
+     def process_order(self, order_id: str) -> Order:
+-        """Processes order: reserves inventory and marks as COMPLETED."""
++        """Processes order: reserves inventory with exponential backoff on transient errors."""
+         order = self.storage.get_order(order_id)
+-        if order.status != OrderStatus.CREATED:
++        if order.status == OrderStatus.COMPLETED:
+             return order
+ 
+-        # Reserve inventory for each item
+-        reserved_items = []
+-        try:
+-            for item in order.items:
+-                self.storage.reserve_stock(item.product_id, item.quantity)
+-                reserved_items.append(item)
+-            
+-            self._transition(order, OrderStatus.INVENTORY_RESERVED, "All item stock successfully reserved")
+-            self._transition(order, OrderStatus.COMPLETED, "Payment confirmed and order completed")
+-            self.storage.save_order(order)
+-            return order
++        # Check idempotency cache if present
++        if order.idempotency_key:
++            cached = self.storage.get_idempotent_order(order.idempotency_key)
++            if cached and cached.id != order.id:
++                return cached
++
++        attempt = 0
++        delay = self.initial_retry_delay
++        retried_successfully = False
++
++        while True:
++            reserved_items = []
++            try:
++                for item in order.items:
++                    self.storage.reserve_stock(item.product_id, item.quantity)
++                    reserved_items.append(item)
++
++                if retried_successfully:
++                    self._transition(order, OrderStatus.RETRIED, f"Transient lock recovered after retry attempt {attempt}")
++
++                self._transition(order, OrderStatus.INVENTORY_RESERVED, "All item stock successfully reserved")
++                self._transition(order, OrderStatus.COMPLETED, "Payment confirmed and order completed")
++
++                if order.idempotency_key:
++                    self.storage.record_idempotent_order(order.idempotency_key, order.id)
++
++                self.storage.save_order(order)
++                return order
++
++            except InventoryUnavailableError as e:
++                # Rollback already reserved stock in this attempt
++                for item in reserved_items:
++                    self.storage.release_stock(item.product_id, item.quantity)
++
++                if e.is_transient and attempt < self.max_retries:
++                    attempt += 1
++                    retried_successfully = True
++                    time.sleep(delay)
++                    delay *= self.backoff_factor
++                    continue
+ 
+-        except InventoryUnavailableError as e:
+-            # Rollback already reserved stock
+-            for item in reserved_items:
+-                self.storage.release_stock(item.product_id, item.quantity)
+-            self._transition(order, OrderStatus.FAILED, f"Order failed: {str(e)}")
+-            self.storage.save_order(order)
+-            raise
++                # Permanent failure or retries exhausted
++                self._transition(order, OrderStatus.FAILED, f"Order failed: {str(e)}")
++                self.storage.save_order(order)
++                raise
+ 
+     def get_order(self, order_id: str) -> Order:
+         return self.storage.get_order(order_id)
+diff --git a/eval-base-project/src/order_service/storage.py b/eval-with-memory/src/order_service/storage.py
+index cf4a873..8d830c9 100644
+--- a/eval-base-project/src/order_service/storage.py
++++ b/eval-with-memory/src/order_service/storage.py
+@@ -1,10 +1,10 @@
+ """
+-In-memory transactional storage and repository for products and orders.
++In-memory transactional storage and repository for products and orders with idempotency cache.
+ """
+ 
+ from datetime import datetime, timezone
+ from typing import Dict, Optional
+-from order_service.models import Order
++from order_service.models import Order, OrderStatus
+ from order_service.errors import OrderNotFoundError, InventoryUnavailableError
+ 
+ 
+@@ -21,6 +21,8 @@ class InMemoryStorage:
+         }
+         # Simulated lock contention tracking: product_id -> transient_failure_count
+         self.transient_lock_counters: Dict[str, int] = {}
++        # idempotency_key -> {"order_id": str, "timestamp": float}
++        self.idempotency_cache: Dict[str, Dict[str, any]] = {}
+ 
+     def get_stock(self, product_id: str) -> int:
+         return self.inventory.get(product_id, 0)
+@@ -61,3 +63,23 @@ class InMemoryStorage:
+         if order_id not in self.orders:
+             raise OrderNotFoundError(f"Order {order_id} not found")
+         return self.orders[order_id]
++
++    def get_idempotent_order(self, idempotency_key: str, ttl_seconds: int = 600) -> Optional[Order]:
++        """Retrieves cached completed order if within TTL."""
++        entry = self.idempotency_cache.get(idempotency_key)
++        if not entry:
++            return None
++        now = datetime.now(timezone.utc).timestamp()
++        if now - entry["timestamp"] > ttl_seconds:
++            return None
++        order = self.orders.get(entry["order_id"])
++        if order and order.status == OrderStatus.COMPLETED:
++            return order
++        return None
++
++    def record_idempotent_order(self, idempotency_key: str, order_id: str) -> None:
++        now = datetime.now(timezone.utc).timestamp()
++        self.idempotency_cache[idempotency_key] = {
++            "order_id": order_id,
++            "timestamp": now,
++        }

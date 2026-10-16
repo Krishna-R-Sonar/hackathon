@@ -1,0 +1,83 @@
+{
+  "workspace_id": "hackathon-eval-exp001",
+  "query": "implement idempotency retry backoff and audit log",
+  "context_items": [
+    {
+      "type": "handoff",
+      "session_id": "sess_prep_001",
+      "summary": "Completed memory preparation with architectural patterns, decisions, and handoff state.",
+      "changed_files": [
+        "order_service/service.py",
+        "order_service/storage.py",
+        "order_service/models.py"
+      ],
+      "verified_findings": [
+        "Transient lock contention is marked by is_transient=True on InventoryUnavailableError.",
+        "Idempotent cache must return existing completed order without inventory changes.",
+        "Audit log records all state transitions including RETRIED."
+      ],
+      "test_outcomes": "Baseline tests passing 3/3",
+      "blockers": "",
+      "next_steps": "Implement the idempotency cache, exponential backoff retry loop, and RETRIED audit logging."
+    },
+    {
+      "type": "decision",
+      "id": "dec_ae450cb21dc8",
+      "title": "Order Idempotency Key Caching Policy",
+      "rationale": "To prevent duplicate order placements and double billing from network retries, clients provide an optional idempotency_key. If an order with that key already completed within the 10-minute cache window, the service immediately returns the cached completed Order without executing any stock reservation or payment processing again.",
+      "evidence": []
+    },
+    {
+      "type": "memory",
+      "id": "mem_51165c852076",
+      "memory_type": "semantic",
+      "content": "Every order state transition must append an AuditLogEntry to order.audit_log with from_status, to_status, and message. When a retry succeeds after transient failures, an audit log entry with to_status='RETRIED' must be recorded before final completion.",
+      "source_ref": "order_service/models.py",
+      "related_entities": [],
+      "evidence": []
+    },
+    {
+      "type": "memory",
+      "id": "mem_95540f841d73",
+      "memory_type": "procedural",
+      "content": "When reserving inventory in OrderService, lock contention raises InventoryUnavailableError with is_transient=True. The service must automatically retry transient lock errors with exponential backoff (initial_delay=0.1s, backoff_factor=2.0, max_retries=3). Permanent stock exhaustion has is_transient=False and must not be retried.",
+      "source_ref": "order_service/storage.py",
+      "related_entities": [],
+      "evidence": []
+    },
+    {
+      "type": "memory",
+      "id": "mem_ba40e3f254ff",
+      "memory_type": "finding",
+      "content": "Audit log records all state transitions including RETRIED.",
+      "source_ref": "unknown",
+      "related_entities": [],
+      "evidence": []
+    },
+    {
+      "type": "memory",
+      "id": "mem_f477f46ffe70",
+      "memory_type": "finding",
+      "content": "Transient lock contention is marked by is_transient=True on InventoryUnavailableError.",
+      "source_ref": "unknown",
+      "related_entities": [],
+      "evidence": []
+    },
+    {
+      "type": "memory",
+      "id": "mem_b585e7b64aa2",
+      "memory_type": "finding",
+      "content": "Idempotent cache must return existing completed order without inventory changes.",
+      "source_ref": "unknown",
+      "related_entities": [],
+      "evidence": []
+    }
+  ],
+  "estimated_tokens": 686,
+  "token_budget": 4000,
+  "token_estimation": "JSON character count divided by 4; approximate, not model-tokenizer exact",
+  "omitted_items": 0,
+  "suggested_next_steps": [
+    "Adhere to established decision: Order Idempotency Key Caching Policy"
+  ]
+}

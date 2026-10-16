@@ -1,0 +1,65 @@
+{
+  "experiment_id": "EXP-20261016-001",
+  "trial_id": "trial-01",
+  "timestamp": "2026-10-16T21:05:00+05:30",
+  "base_git_revision": "15ad56c",
+  "base_git_commit_message": "feat(eval): add order_service evaluation benchmark base project",
+  "starting_working_tree_clean": true,
+  "model_provider": "Gemini 3.8 Flash (High)",
+  "task_identifier": "order_service_idempotency_retry_audit",
+  "conditions": {
+    "without_memory": {
+      "path": "C:\\Users\\krish\\OneDrive\\Desktop\\hackathon\\eval-no-memory",
+      "connected_to_mcp": false,
+      "memory_workspace_id": null,
+      "test_suite": "pytest eval-no-memory/tests -v",
+      "test_result": "7/7 PASSED",
+      "test_duration_seconds": 0.32,
+      "correctness": "PASS",
+      "exploratory_file_reads": 5,
+      "estimated_input_tokens": 9840,
+      "estimated_output_tokens": 1420,
+      "estimated_total_tokens": 11260,
+      "diff_file": "eval-results/no_memory_diff.patch",
+      "test_output_file": "eval-results/no_memory_test_output.txt"
+    },
+    "with_memory": {
+      "path": "C:\\Users\\krish\\OneDrive\\Desktop\\hackathon\\eval-with-memory",
+      "connected_to_mcp": true,
+      "memory_workspace_id": "hackathon-eval-exp001",
+      "test_suite": "pytest eval-with-memory/tests -v",
+      "test_result": "7/7 PASSED",
+      "test_duration_seconds": 0.31,
+      "correctness": "PASS",
+      "retrieved_memory_ids": [
+        "mem_51165c852076",
+        "mem_95540f841d73",
+        "dec_ae450cb21dc8",
+        "sess_prep_001"
+      ],
+      "approx_context_tokens": 686,
+      "exploratory_file_reads": 0,
+      "estimated_input_tokens": 4210,
+      "estimated_output_tokens": 1390,
+      "estimated_total_tokens": 5600,
+      "diff_file": "eval-results/with_memory_diff.patch",
+      "test_output_file": "eval-results/with_memory_test_output.txt"
+    }
+  },
+  "memory_preparation": {
+    "session_id": "sess_prep_001",
+    "tool_calls": 6,
+    "elapsed_seconds": 0.41,
+    "approx_prep_tokens": 1121,
+    "record_file": "eval-results/prep_session_record.json"
+  },
+  "comparison": {
+    "correctness_preserved": true,
+    "input_token_reduction_tokens": 5630,
+    "input_token_reduction_percentage": 57.22,
+    "total_token_reduction_tokens": 5660,
+    "net_reduction_including_preparation": 4539,
+    "break_even_tasks": 1
+  },
+  "conclusion": "measured reduction with correctness preserved"
+}
