@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EventRoute — Webhook Delivery Audit Gateway</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <span class="pulse"></span>
+      <h1>EventRoute Gateway</h1>
+    </div>
+    <div class="status-badge" id="systemStatus">Online</div>
+  </header>
+
+  <main>
+    <section class="metrics-grid">
+      <div class="metric-card">
+        <h3>Total Deliveries</h3>
+        <p class="metric-val" id="totalCount">0</p>
+      </div>
+      <div class="metric-card success">
+        <h3>Delivered</h3>
+        <p class="metric-val" id="deliveredCount">0</p>
+      </div>
+      <div class="metric-card warning">
+        <h3>Retrying</h3>
+        <p class="metric-val" id="retryingCount">0</p>
+      </div>
+      <div class="metric-card danger">
+        <h3>Failed</h3>
+        <p class="metric-val" id="failedCount">0</p>
+      </div>
+    </section>
+
+    <section class="table-container">
+      <div class="table-header">
+        <h2>Live Delivery Feed</h2>
+        <button id="refreshBtn" class="btn">Refresh Feed</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Event ID</th>
+            <th>Topic</th>
+            <th>Destination</th>
+            <th>Attempts</th>
+            <th>HTTP Status</th>
+            <th>Timestamp</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="deliveryTableBody">
+          <tr><td colspan="8" class="loading">Loading delivery logs...</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

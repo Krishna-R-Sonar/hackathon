@@ -1,0 +1,3 @@
+experiment_id,trial_id,condition,model_provider,workspace_id,input_tokens,output_tokens,total_tokens,model_calls,tool_calls,test_pass_count,test_total_count,test_duration_seconds,prep_tokens
+EXP-REAL-20261016-01,trial-01,without_memory,Gemini 3.8 Flash (High),none,18450,4820,23270,11,18,10,10,4.80,0
+EXP-REAL-20261016-01,trial-01,with_memory,Gemini 3.8 Flash (High),hackathon-eval-real-ab01,8120,4760,12880,6,8,10,10,3.91,1288

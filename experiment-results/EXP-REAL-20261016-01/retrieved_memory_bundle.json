@@ -1,0 +1,92 @@
+{
+  "workspace_id": "hackathon-eval-real-ab01",
+  "query": "EventRoute webhook gateway HMAC signature verification retry backoff SQLite WAL dashboard",
+  "context_items": [
+    {
+      "type": "handoff",
+      "session_id": "sess_eventroute_prep",
+      "summary": "Completed memory preparation for EventRoute A/B evaluation.",
+      "changed_files": [
+        "app/main.py",
+        "app/security.py",
+        "app/storage.py",
+        "app/dispatcher.py",
+        "static/index.html"
+      ],
+      "verified_findings": [
+        "Constant-time HMAC comparison prevents timing attacks",
+        "WAL mode enables concurrent dashboard reads during delivery writes",
+        "4xx errors abort immediately while 5xx retry with backoff"
+      ],
+      "test_outcomes": "Architectural specifications confirmed",
+      "blockers": "",
+      "next_steps": "Build EventRoute webhook gateway with ingestion, dispatcher, SQLite storage, and dashboard UI."
+    },
+    {
+      "type": "decision",
+      "id": "dec_cc5e0da6c25d",
+      "title": "HMAC-SHA256 Signature Header & Timing Attack Prevention",
+      "rationale": "Inbound webhooks must be verified using X-Signature-256 header with HMAC-SHA256. To prevent timing attacks, comparisons must use constant-time hmac.compare_digest rather than standard equality operators.",
+      "evidence": []
+    },
+    {
+      "type": "decision",
+      "id": "dec_fc6bd71a1a8e",
+      "title": "Embedded Lightweight SPA Dashboard Architecture",
+      "rationale": "To avoid complex Node/NPM build chains while fulfilling frontend requirements, serve a self-contained vanilla HTML/CSS/JavaScript dashboard directly from FastAPI static files mounted at root / with REST API polling for live status.",
+      "evidence": []
+    },
+    {
+      "type": "memory",
+      "id": "mem_97ef720b0825",
+      "memory_type": "semantic",
+      "content": "SQLite delivery storage should use WAL mode (PRAGMA journal_mode=WAL) to allow concurrent non-blocking reads from the dashboard while delivery worker writes event logs. Schema requires event_id, source_id, topic, payload, idempotency_key, status (DELIVERED, RETRYING, FAILED), and attempts count.",
+      "source_ref": "docs/STORAGE_SPEC.md",
+      "related_entities": [],
+      "evidence": []
+    },
+    {
+      "type": "memory",
+      "id": "mem_50308df0710d",
+      "memory_type": "procedural",
+      "content": "Webhook dispatch to target URLs must implement exponential backoff on HTTP 5xx responses or timeouts: initial_delay=0.1s, backoff_factor=2.0, max_retries=3. Permanent HTTP 4xx client errors must be marked as FAILED immediately without retry to avoid hammering bad endpoints.",
+      "source_ref": "docs/DISPATCH_POLICY.md",
+      "related_entities": [],
+      "evidence": []
+    },
+    {
+      "type": "memory",
+      "id": "mem_8785b6eb8de8",
+      "memory_type": "finding",
+      "content": "WAL mode enables concurrent dashboard reads during delivery writes",
+      "source_ref": "unknown",
+      "related_entities": [],
+      "evidence": []
+    },
+    {
+      "type": "memory",
+      "id": "mem_e66e676e0f22",
+      "memory_type": "finding",
+      "content": "4xx errors abort immediately while 5xx retry with backoff",
+      "source_ref": "unknown",
+      "related_entities": [],
+      "evidence": []
+    },
+    {
+      "type": "memory",
+      "id": "mem_cbc12eeb04d1",
+      "memory_type": "finding",
+      "content": "Constant-time HMAC comparison prevents timing attacks",
+      "source_ref": "unknown",
+      "related_entities": [],
+      "evidence": []
+    }
+  ],
+  "estimated_tokens": 725,
+  "token_budget": 4000,
+  "token_estimation": "JSON character count divided by 4; approximate, not model-tokenizer exact",
+  "omitted_items": 0,
+  "suggested_next_steps": [
+    "Adhere to established decision: HMAC-SHA256 Signature Header & Timing Attack Prevention"
+  ]
+}

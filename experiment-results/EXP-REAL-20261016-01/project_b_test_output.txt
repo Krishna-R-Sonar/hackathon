@@ -1,0 +1,21 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.14.2, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\krish\OneDrive\Desktop\hackathon\graph-agent-memory\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\krish\OneDrive\Desktop\hackathon\project-b-with-memory
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 10 items
+
+project-b-with-memory\tests\test_dashboard_and_redeliver.py::test_dashboard_page_served PASSED [ 10%]
+project-b-with-memory\tests\test_dashboard_and_redeliver.py::test_list_deliveries_api PASSED [ 20%]
+project-b-with-memory\tests\test_dashboard_and_redeliver.py::test_manual_redelivery PASSED [ 30%]
+project-b-with-memory\tests\test_dispatcher_and_retry.py::test_transient_503_retry_and_recovery PASSED [ 40%]
+project-b-with-memory\tests\test_dispatcher_and_retry.py::test_permanent_404_client_error_aborts_immediately PASSED [ 50%]
+project-b-with-memory\tests\test_dispatcher_and_retry.py::test_transient_failure_exhaustion PASSED [ 60%]
+project-b-with-memory\tests\test_ingest_and_security.py::test_ingest_valid_hmac_signature PASSED [ 70%]
+project-b-with-memory\tests\test_ingest_and_security.py::test_ingest_invalid_hmac_rejected PASSED [ 80%]
+project-b-with-memory\tests\test_ingest_and_security.py::test_ingest_unregistered_source PASSED [ 90%]
+project-b-with-memory\tests\test_ingest_and_security.py::test_ingest_idempotency_cache PASSED [100%]
+
+============================= 10 passed in 3.91s ==============================
