@@ -7,6 +7,18 @@
 
 A persistent, knowledge graph-backed memory service for AI coding agents built on **FalkorDB** and integrated via the **Model Context Protocol (MCP)**. This system prevents AI agent context amnesia, indexes codebase architecture, records design decisions with evidence, and enables seamless cross-agent handoffs without redundant codebase re-exploration.
 
+### Hackathon Tracks
+- 🤖 **Primary Track: Track 02 — Agent Memory and Coordination**
+  - Episodic, semantic, and procedural memory persisted in FalkorDB
+  - Cross-session checkpoints and structured handoffs between agents
+  - Bounded conversational history with automatic secret screening
+  - Multi-tenant workspace isolation (`workspace_id`) preventing data leakage
+  - Atomic optimistic versioning for high-concurrency consistency
+- 🕵️ **Cross-Cutting Track: Track 01 — Agents That Act on Connected Data**
+  - Multi-hop graph traversal and Cypher querying via 14 typed MCP tools
+  - Decisions, memories, and code changes linked with strict provenance
+  - Compact, budget-capped agent context bundles guiding downstream code generation
+
 This repository contains both the **`graph-agent-memory`** core service and a **rigorous, controlled real-project A/B evaluation** demonstrating its measured token savings, speedup, and correctness preservation.
 
 ---
@@ -83,19 +95,18 @@ Directory: `eval-results/`
 
 ---
 
-## 4. How to Use the `graph-agent-memory` Service
+## 4. How to Set Up & Use the Project
 
 ### Step 1: Start FalkorDB
 The database runs as a lightweight Docker container providing both the graph engine (port 6379) and the visual web browser (port 3000):
 
 ```powershell
-cd graph-agent-memory
-docker compose up -d
-```
+# From workspace root:
+docker start graph_agent_memory_falkordb
+# (Or using docker-compose: docker compose -f graph-agent-memory/docker-compose.yml up -d)
 
-Verify that the database is healthy:
-```powershell
-python scripts/healthcheck.py
+# Verify that FalkorDB is healthy:
+.\graph-agent-memory\.venv\Scripts\python.exe graph-agent-memory\scripts\healthcheck.py
 ```
 
 ### Step 2: Set Up Virtual Environment & Dependencies
@@ -104,12 +115,35 @@ cd graph-agent-memory
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e .
+cd ..
 ```
 
-### Step 3: Run the Test Suite
+### Step 3: Run the Memory Service Test Suite
 ```powershell
 # Run all unit, integration, MCP, and cross-session scenario tests (31 tests)
+cd graph-agent-memory
 pytest -v
+cd ..
+```
+
+### Step 4: Reproduce the Real-Project A/B Evaluation Tests
+To verify the evidence of both conditions with identical 10/10 acceptance pass rates:
+
+```powershell
+# Condition A (Without Memory - Baseline):
+$env:PYTHONPATH="project-a-no-memory"
+.\graph-agent-memory\.venv\Scripts\python.exe -m pytest project-a-no-memory\tests -v
+
+# Condition B (With Graph Memory):
+$env:PYTHONPATH="project-b-with-memory"
+.\graph-agent-memory\.venv\Scripts\python.exe -m pytest project-b-with-memory\tests -v
+```
+
+### Step 5: Query FalkorDB Graph Memory from Terminal
+Retrieve persisted knowledge clusters, architectural decisions, and agent handoff state directly:
+```powershell
+$env:PYTHONPATH="graph-agent-memory\src"
+.\graph-agent-memory\.venv\Scripts\python.exe eval-results\run_terminal_queries.py
 ```
 
 ---
@@ -185,25 +219,18 @@ The server exposes **14 domain-specific tools**:
 
 FalkorDB provides a built-in visual graph browser running at **`http://localhost:3000`**:
 
-1. Open **[http://localhost:3000](http://localhost:3000)** in your browser.
+1. Open **[http://localhost:3000/login](http://localhost:3000/login)** in your browser.
 2. Log in using:
    - **Host**: `localhost` (or `127.0.0.1`)
    - **Port**: `6379`
-   - **Username**: `default` (or leave blank)
-   - **Password**: *(Leave blank)*
+   - **Username**: `default`
+   - **Password**: `falkordb`
    - **TLS Secured Connection**: Unchecked
-3. Select the **`agent_memory`** graph from the dropdown on the left.
+3. Select the **`agent_memory`** graph from the left navigation panel.
 4. Run openCypher queries in the top query bar:
    ```cypher
-   // View the full evaluation cluster:
+   // View the full evaluation cluster with relationships:
    MATCH (n) WHERE n.workspace_id = 'hackathon-eval-real-ab01' 
    OPTIONAL MATCH (n)-[r]->(m) 
    RETURN n, r, m
    ```
-
-### Querying from Terminal
-You can also query the graph directly from your terminal using the helper script:
-```powershell
-$env:PYTHONPATH="graph-agent-memory\src"
-.\graph-agent-memory\.venv\Scripts\python.exe eval-results\run_terminal_queries.py
-```
