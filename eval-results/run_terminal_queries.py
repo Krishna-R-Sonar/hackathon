@@ -8,9 +8,29 @@ from pathlib import Path
 # Add graph-agent-memory/src to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "graph-agent-memory" / "src"))
 
+import redis
+from graph_memory.config import settings
 from graph_memory.db import get_db
 
-db = get_db()
+def init_connection():
+    try:
+        d = get_db()
+        h = d.check_health()
+        if h.get("status") == "healthy":
+            return d
+    except Exception:
+        pass
+    
+    # Auto-synchronize local Redis ACL if container was restarted
+    try:
+        r = redis.Redis(host=settings.falkordb_host, port=settings.falkordb_port)
+        if settings.falkordb_username and settings.falkordb_password:
+            r.execute_command('ACL', 'SETUSER', settings.falkordb_username, 'on', f'>{settings.falkordb_password}', '~*', '&*', '+@all')
+    except Exception:
+        pass
+    return get_db()
+
+db = init_connection()
 
 print("=" * 80)
 print("QUERY A: Knowledge cluster for workspace 'hackathon-eval-real-ab01'")
